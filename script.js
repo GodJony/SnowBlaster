@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // --- Elements ---
 let startBtn, overlay, distDisplay, hpBarFill, damageOverlay, joyZone, joyKnob, shootBtnMobile, ammoContainer, loadingText;
-let qaBtn, qaPanel, qaClose, stageDisplay;
+let qaBtn, qaPanel, qaClose, stageDisplay, tutorialText;
 
 // --- Game Config ---
 const Config = {
@@ -12,9 +12,10 @@ const Config = {
 };
 
 const Stages = [
-    { duration: 1500, startSpeed: 20, maxSpeed: 40, crystalMove: false },
-    { duration: 2000, startSpeed: 25, maxSpeed: 50, crystalMove: true },
-    { duration: 9999, startSpeed: 30, maxSpeed: 60, crystalMove: true },
+    { name: "Tutorial", duration: 500, startSpeed: 15, maxSpeed: 15, crystalMove: false },
+    { name: "Stage 1", duration: 1500, startSpeed: 20, maxSpeed: 40, crystalMove: false },
+    { name: "Stage 2", duration: 2000, startSpeed: 25, maxSpeed: 50, crystalMove: true },
+    { name: "Stage 3", duration: 9999, startSpeed: 30, maxSpeed: 60, crystalMove: true },
 ];
 
 // --- Game Variables ---
@@ -27,6 +28,7 @@ let speedLines = [];
 
 let currentStageIndex = 0;
 let distInStage = 0;
+let tutorialState = 0;
 
 let isGameOver = true;
 let gameSpeed = 0;
@@ -90,6 +92,7 @@ function assignDOMElements() {
     overlay = document.getElementById('message-overlay');
     distDisplay = document.getElementById('dist-display');
     stageDisplay = document.getElementById('stage-display');
+    tutorialText = document.getElementById('tutorial-text');
     hpBarFill = document.getElementById('hp-bar-fill');
     damageOverlay = document.getElementById('damage-overlay');
     joyZone = document.getElementById('joystick-zone');
@@ -111,7 +114,7 @@ function setupEventListeners() {
     qaClose.addEventListener('click', () => { qaPanel.style.display = 'none'; });
 
     document.getElementById('inp-growth').addEventListener('input', (e) => { Config.growthRate = parseFloat(e.target.value); document.getElementById('val-growth').innerText = Config.growthRate; });
-    document.getElementById('inp-speed').addEventListener('input', (e) => { Config.startSpeed = parseFloat(e.target.value); document.getElementById('val-speed').innerText = Config.startSpeed; });
+    document.getElementById('inp-speed').addEventListener('input', (e) => { Stages[1].startSpeed = parseFloat(e.target.value); document.getElementById('val-speed').innerText = Stages[1].startSpeed; });
     document.getElementById('inp-cost').addEventListener('input', (e) => { Config.shootCost = parseFloat(e.target.value); document.getElementById('val-cost').innerText = Config.shootCost; });
 
     // BGM Load Check
@@ -223,6 +226,7 @@ function updateJoystick(touch) {
 function loadStage(stageIndex) {
     currentStageIndex = stageIndex;
     distInStage = 0;
+    tutorialState = 0;
     
     const stage = Stages[currentStageIndex];
     if (!stage) {
@@ -232,16 +236,18 @@ function loadStage(stageIndex) {
 
     gameSpeed = stage.startSpeed;
     
-    // Show stage message
-    document.querySelector('#message-overlay h1').innerText = `Stage ${currentStageIndex + 1}`;
-    document.querySelector('.instructions').innerHTML = `Speed up!`;
-    overlay.style.display = 'flex';
-    if(startBtn) startBtn.style.display = 'none';
-    
-    setTimeout(() => {
-        overlay.style.display = 'none';
-        if(startBtn) startBtn.style.display = 'block';
-    }, 1500); // Show message for 1.5 seconds
+    // Show stage message for non-tutorial stages
+    if (stage.name !== "Tutorial") {
+        document.querySelector('#message-overlay h1').innerText = stage.name;
+        document.querySelector('.instructions').innerHTML = `Speed up!`;
+        overlay.style.display = 'flex';
+        if(startBtn) startBtn.style.display = 'none';
+        
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            if(startBtn) startBtn.style.display = 'block';
+        }, 1500);
+    }
 }
 
 function startGame() {
@@ -268,6 +274,8 @@ function startGame() {
     playerSize = INITIAL_SIZE;
     playerX = 0;
     playerPivot.position.set(0, 0, 0);
+    tutorialState = 0;
+    if(tutorialText) tutorialText.style.opacity = 0;
     
     obstacles.forEach(o => scene.remove(o.mesh));
     obstacles = [];
@@ -318,6 +326,13 @@ function shootBullet() {
     playShootSound();
 
     playerSize -= Config.shootCost; 
+    
+    if (Stages[currentStageIndex].name === "Tutorial" && tutorialState === 3) {
+        tutorialState = 4;
+        setTimeout(() => showTutorialText("발사하면 몸이 작아져요!"), 200);
+        setTimeout(() => showTutorialText(""), 3000);
+    }
+
     updatePlayerVisuals();
     cameraShake = 0.3; 
     triggerExplosion(playerPivot.position, 0xffffff, 0.5); 
@@ -333,6 +348,9 @@ function shootBullet() {
 }
 
 function spawnObstacle() {
+    // Prevent random spawning during tutorial
+    if (Stages[currentStageIndex].name === "Tutorial") return;
+
     const zPos = -80;
     const xPos = (Math.random() - 0.5) * LANE_WIDTH * 1.5; 
     const difficulty = Math.min(totalDist / 4000, 0.5); 
@@ -399,7 +417,7 @@ let spawnTimer = 0;
 
 function updateUI() {
     const stage = Stages[currentStageIndex];
-    stageDisplay.innerText = `Stage ${currentStageIndex + 1}`;
+    stageDisplay.innerText = stage.name;
     const distRemaining = stage.duration - distInStage;
     distDisplay.innerText = `${Math.floor(distRemaining)}m`;
 
@@ -407,6 +425,76 @@ function updateUI() {
     hpBarFill.style.width = `${hpPercent}%`;
     hpBarFill.style.background = playerSize < MIN_SIZE_TO_SHOOT ? '#ff7675' : 'linear-gradient(90deg, #00b894, #55efc4)';
 }
+
+// --- Tutorial ---
+function showTutorialText(text) {
+    if (!tutorialText) return;
+    if (text) {
+        tutorialText.innerText = text;
+        tutorialText.style.opacity = 1;
+    } else {
+        tutorialText.style.opacity = 0;
+    }
+}
+
+function spawnTutorialObstacle(type, x, z) {
+    let mesh, size;
+    if (type === 'crystal') {
+        size = 1.0;
+        mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(size, 0), matCrystalNormal.clone());
+        mesh.position.y = size - 1;
+    } else if (type === 'wall') {
+        size = 2.2;
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size * 2.5, 1), matDanger);
+        mesh.position.y = size - 1;
+         const xMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const x1 = new THREE.Mesh(new THREE.BoxGeometry(size*0.8, 0.2, 0.2), xMat);
+        x1.rotation.z = Math.PI/4; x1.position.z = 0.6;
+        const x2 = new THREE.Mesh(new THREE.BoxGeometry(size*0.8, 0.2, 0.2), xMat);
+        x2.rotation.z = -Math.PI/4; x2.position.z = 0.6;
+        mesh.add(x1); mesh.add(x2);
+    }
+    
+    mesh.position.set(x, mesh.position.y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    obstacles.push({ mesh, type, size, hit: false, initialTime: performance.now() / 1000 });
+}
+
+function updateTutorial() {
+    if (Stages[currentStageIndex].name !== "Tutorial") return;
+
+    // 1. Movement
+    if (tutorialState === 0 && distInStage > 10) {
+        tutorialState = 1;
+        showTutorialText("← → 방향키 또는 조이스틱으로 움직여보세요");
+        spawnTutorialObstacle('crystal', -2, -30);
+        spawnTutorialObstacle('crystal', 2, -45);
+        spawnTutorialObstacle('crystal', 0, -60);
+    }
+    
+    if (tutorialState === 1 && playerSize > INITIAL_SIZE) {
+        tutorialState = 2;
+        showTutorialText("수정을 먹으면 몸이 커져요!");
+        setTimeout(() => showTutorialText(""), 4000);
+    }
+
+    // 2. Shooting
+    if (tutorialState === 2 && distInStage > 180) {
+        tutorialState = 3;
+        showTutorialText("Spacebar 또는 🔥 버튼으로 벽을 파괴하세요!");
+        spawnTutorialObstacle('wall', 0, -80);
+    }
+    
+    // 3. Recap
+    if (tutorialState === 4 && distInStage > 350) {
+        tutorialState = 5;
+        showTutorialText("좋아요! 이제 본격적으로 시작합니다!");
+        setTimeout(() => showTutorialText(""), 3000);
+    }
+}
+
 
 function animate() {
     requestAnimationFrame(animate);
@@ -416,11 +504,15 @@ function animate() {
     const stage = Stages[currentStageIndex];
 
     // Speed and Distance
-    if (gameSpeed < stage.maxSpeed) {
+    // In tutorial, speed is fixed. In other stages, it accelerates.
+    if (stage.name !== "Tutorial" && gameSpeed < stage.maxSpeed) {
         gameSpeed += dt * 0.3; 
     }
     totalDist += gameSpeed * dt;
     distInStage += gameSpeed * dt;
+
+    // Tutorial Logic
+    updateTutorial();
 
     // Stage Completion
     if (distInStage >= stage.duration) {
@@ -533,6 +625,12 @@ function animate() {
                         triggerExplosion(obs.mesh.position, 0x00cec9, 1.0);
                         playExplosionSound();
                         cameraShake = 0.2;
+
+                        if (Stages[currentStageIndex].name === "Tutorial" && tutorialState === 1) {
+                            tutorialState = 2;
+                            showTutorialText("수정을 먹으면 몸이 커져요!");
+                            setTimeout(() => showTutorialText(""), 4000);
+                        }
                         scene.remove(obs.mesh);
                     } else {
                         playerSize -= 0.3;
