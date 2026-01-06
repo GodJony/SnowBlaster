@@ -12,10 +12,12 @@ const Config = {
 };
 
 const Stages = [
-    { name: "Tutorial", duration: 500, startSpeed: 15, maxSpeed: 15, crystalMove: false },
-    { name: "Stage 1", duration: 1500, startSpeed: 20, maxSpeed: 40, crystalMove: false },
-    { name: "Stage 2", duration: 2000, startSpeed: 25, maxSpeed: 50, crystalMove: true },
-    { name: "Stage 3", duration: 9999, startSpeed: 30, maxSpeed: 60, crystalMove: true },
+    { name: "Tutorial", duration: 500, startSpeed: 15, maxSpeed: 15, crystalMove: false, wallMove: false },
+    { name: "Stage 1", duration: 1500, startSpeed: 20, maxSpeed: 40, crystalMove: false, wallMove: false },
+    { name: "Stage 2", duration: 2000, startSpeed: 25, maxSpeed: 50, crystalMove: true, wallMove: false },
+    { name: "Stage 3", duration: 2500, startSpeed: 30, maxSpeed: 60, crystalMove: true, wallMove: false },
+    { name: "Stage 4", duration: 3000, startSpeed: 35, maxSpeed: 65, crystalMove: true, wallMove: true },
+    { name: "Stage 5", duration: 9999, startSpeed: 40, maxSpeed: 999, crystalMove: true, wallMove: true, infiniteSpeed: true },
 ];
 
 // --- Game Variables ---
@@ -224,16 +226,12 @@ function updateJoystick(touch) {
 }
 
 function loadStage(stageIndex) {
-    currentStageIndex = stageIndex;
+    // Loop back to the last stage if we run out of stages
+    currentStageIndex = stageIndex >= Stages.length ? Stages.length - 1 : stageIndex;
     distInStage = 0;
     tutorialState = 0;
     
     const stage = Stages[currentStageIndex];
-    if (!stage) {
-        gameOver(); // Or show a "You Win!" message
-        return;
-    }
-
     gameSpeed = stage.startSpeed;
     
     // Show stage message for non-tutorial stages
@@ -418,8 +416,13 @@ let spawnTimer = 0;
 function updateUI() {
     const stage = Stages[currentStageIndex];
     stageDisplay.innerText = stage.name;
-    const distRemaining = stage.duration - distInStage;
-    distDisplay.innerText = `${Math.floor(distRemaining)}m`;
+
+    if (stage.infiniteSpeed) {
+        distDisplay.innerText = `${Math.floor(distInStage)}m`;
+    } else {
+        const distRemaining = stage.duration - distInStage;
+        distDisplay.innerText = `${Math.floor(distRemaining)}m`;
+    }
 
     const hpPercent = Math.min((playerSize / Config.maxSize) * 100, 100);
     hpBarFill.style.width = `${hpPercent}%`;
@@ -504,8 +507,9 @@ function animate() {
     const stage = Stages[currentStageIndex];
 
     // Speed and Distance
-    // In tutorial, speed is fixed. In other stages, it accelerates.
-    if (stage.name !== "Tutorial" && gameSpeed < stage.maxSpeed) {
+    if (stage.infiniteSpeed) {
+        gameSpeed += dt * 0.2; // Uncapped speed increase
+    } else if (gameSpeed < stage.maxSpeed) {
         gameSpeed += dt * 0.3; 
     }
     totalDist += gameSpeed * dt;
@@ -515,7 +519,7 @@ function animate() {
     updateTutorial();
 
     // Stage Completion
-    if (distInStage >= stage.duration) {
+    if (!stage.infiniteSpeed && distInStage >= stage.duration) {
         loadStage(currentStageIndex + 1);
     }
 
@@ -567,10 +571,16 @@ function animate() {
         const obs = obstacles[i];
         obs.mesh.position.z += gameSpeed * dt;
 
+        const time = performance.now() / 1000;
+        
         // Crystal Movement
         if (stage.crystalMove && obs.type === 'crystal') {
-            const time = performance.now() / 1000;
             obs.mesh.position.x += Math.sin(time - obs.initialTime) * dt * 4;
+        }
+
+        // Wall Movement
+        if (stage.wallMove && obs.type === 'wall') {
+            obs.mesh.position.x += Math.cos(time - obs.initialTime) * dt * 8;
         }
 
         if (obs.mesh.position.z > 10) {
