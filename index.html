@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D SNOW BLASTER - AUTO BGM</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+</head>
+<body>
+    <div id="damage-overlay"></div>
+
+    <div id="ui-layer">
+        <div class="top-hud">
+            <div id="stage-display">Stage 1</div>
+            <div id="dist-display">0m</div>
+        </div>
+        <div class="bottom-hud">
+            <div id="ammo-container"></div>
+            <div class="hp-container"><div id="hp-bar-fill"></div></div>
+        </div>
+    </div>
+
+    <div id="joystick-zone"><div id="joystick-knob"></div></div>
+    <div id="shoot-btn-mobile">🔥</div>
+    
+    <div id="qa-btn">⚙️</div>
+    <div id="qa-panel">
+        <h3>🔧 Developer Menu</h3>
+        <div class="qa-row">
+            <label>성장 속도 <span id="val-growth" class="qa-val">0.3</span></label>
+            <input type="range" id="inp-growth" min="0.1" max="1.0" step="0.1" value="0.3">
+        </div>
+        <div class="qa-row">
+            <label>기본 속도 <span id="val-speed" class="qa-val">20</span></label>
+            <input type="range" id="inp-speed" min="10" max="50" step="5" value="20">
+        </div>
+        <div class="qa-row">
+            <label>발사 비용 <span id="val-cost" class="qa-val">0.3</span></label>
+            <input type="range" id="inp-cost" min="0.1" max="1.0" step="0.1" value="0.3">
+        </div>
+        <button id="qa-close">닫기 (저장)</button>
+    </div>
+
+    <div id="message-overlay">
+        <h1>SNOW BLASTER</h1>
+        <div class="instructions">
+            <span class="highlight">파란 수정</span>을 먹어 성장하세요.<br>
+            <span class="key">Space / 버튼</span>으로 벽을 파괴!<br>
+            (⚙️ QA로 밸런스 조절 가능)
+        </div>
+        <button id="start-btn" class="action-btn">GAME START</button>
+        <div id="loading-text">BGM 로딩 대기중...</div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
